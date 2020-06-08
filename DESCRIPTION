@@ -1,0 +1,15 @@
+Package: IsoVision
+Type: Package
+Title: Create Isoform Plots
+Version: 0.1.0
+Author: Jordan Sicherman
+Maintainer: Jordan Sicherman <jordan.sicherman@msl.ubc.ca>
+Description: A package for the generation of pretty isoform plots.
+License: GPLv3
+Encoding: UTF-8
+LazyData: true
+Imports:
+  dplyr,
+  data.table,
+  RColorBrewer
+RoxygenNote: 7.1.0
