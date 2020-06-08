@@ -29,6 +29,7 @@ isoviz_data <- function(path.bed, path.out, path.rank, path.fasta) {
   fasta[, c('orf', 'V1') := list(sapply(strsplit(sapply(strsplit(V1, ':'), tail, 1), '\\('), '[[', 1), NULL)]
 
   starts <- lapply(strsplit(bed[, V12], ','), as.integer)
+  starts <- lapply(1:nrow(bed), function(N) starts[[N]] + bed[N, V2])
   sizes <- lapply(strsplit(bed[, V11], ','), as.integer)
   sizes.sum <- lapply(sizes, cumsum)
 

@@ -31,7 +31,7 @@ isovision <- function(data, whichIsoforms = NULL, main = NULL, main.cex = 2,
                       line.color = 'black', intron.reduction = 0.9, n.chunks = 1000,
                       orf.lwd = 1.5, orf.lty = 1, norf.lwd = 1, norf.lty = 4, mar = 0.1,
                       terminal.style = 'triangle', terminal.fill = 'white', terminal.border = 'black', default.fill = 'white', default.border = 'black',
-                      legend.values = setNames(colnames(data)[-(1:8)], colnames(data)[-(1:8)]), legend.colors = 'Set3',
+                      legend.values = NULL, legend.colors = 'Set3',
                       filename = 'Rplots.pdf', width = 11, height = 8.5) {
   require(RColorBrewer)
   require(data.table)
@@ -54,6 +54,11 @@ isovision <- function(data, whichIsoforms = NULL, main = NULL, main.cex = 2,
     data <- data[isoformName %in% whichIsoforms]
   else if(is.numeric(whichIsoforms))
     data <- data[isoformName %in% data[, unique(isoformName)][whichIsoforms]]
+
+  if(is.null(legend.values)) {
+    legend.present <- colnames(data[, -(1:8)])[colSums(data[, -(1:8)] > 0) > 0]
+    legend.values <- setNames(legend.present, legend.present)
+  }
 
   N <- length(data[, unique(isoformName)])
   legend <- names(legend.values)
