@@ -37,6 +37,8 @@ isovision <- function(data, whichIsoforms = NULL, main = NULL, main.cex = 2,
   require(data.table)
   require(dplyr)
 
+  use.barplot <- use.barplot && 'total' %in% colnames(data)
+
   lighterColor <- function(color) {
     innerColor <- col2rgb(color)
     innerColor <- innerColor + (255 - innerColor) * 0.9
@@ -52,24 +54,35 @@ isovision <- function(data, whichIsoforms = NULL, main = NULL, main.cex = 2,
 
   if(is.character(whichIsoforms))
     data <- data[isoformName %in% whichIsoforms]
-  else if(is.numeric(whichIsoforms))
+  else if(is.numeric(whichIsoforms)) {
     data <- data[isoformName %in% data[, unique(isoformName)][whichIsoforms]]
+    if(!('total' %in% colnames(data)))
+      message('Ranks were not associated in isoviz_data. Top N variants are arbitrary!')
+  }
 
   if(is.null(legend.values)) {
-    legend.present <- colnames(data[, -(1:8)])[colSums(data[, -(1:8)] > 0) > 0]
-    legend.values <- setNames(legend.present, legend.present)
+    cols <- which(!(colnames(data) %in% c('isoformName', 'start', 'end', 'cStart', 'cEnd', 'ORF', 'total', 'ratio_total_reads')))
+
+    if(length(cols) > 0) {
+      legend.present <- colnames(data[, ..cols])[colSums(data[, ..cols] > 0) > 0]
+      legend.values <- setNames(legend.present, legend.present)
+    }
   }
 
   N <- length(data[, unique(isoformName)])
-  legend <- names(legend.values)
 
-  layout(rbind(switch(use.barplot + 1, 1, rep(1, 2)),
-               cbind(switch(use.barplot + 1, NULL, N + 2), 2:(N + 1)),
-               switch(use.barplot + 1, N + 3, c(N + 4, N + 3))),
+  if(!is.null(legend.values))
+    legend <- names(legend.values)
+
+  plot.layout <- rbind(switch(use.barplot + 1, 1, rep(1, 2)),
+                       cbind(switch(use.barplot + 1, NULL, N + 2), 2:(N + 1)),
+                       switch(is.null(legend.values) + 1, switch(use.barplot + 1, N + 2, c(N + 4, N + 3)), NULL))
+
+  layout(plot.layout,
          switch(use.barplot + 1, 1, c(barplot.width, 1 - barplot.width)))
 
   # Shrink in chunks
-  if(n.chunks > 1) {
+  if(n.chunks > 1 && intron.reduction != 0) {
     chunks <- data.frame(start = seq(min(data[, cStart]), max(data[, cEnd]), length.out = n.chunks + 1))
     chunks$end <- c(chunks$start[-1], max(data[, cEnd]))
 
@@ -88,12 +101,14 @@ isovision <- function(data, whichIsoforms = NULL, main = NULL, main.cex = 2,
 
   plot.range <- c(min(data[, cStart]), max(data[, max(cStart + end - start)]))
 
-  par(mar = c(mar, switch(use.barplot + 1, mar, 4.1), 4.1, mar))
+  par(mar = c(mar, switch(use.barplot + 1, mar, mar * 2), mar * 2, mar))
   plot(plot.range, c(0, 10), type = 'n', xlab = '', ylab = '', axes = F)
   title(main, cex.main = main.cex)
   par(mar = rep(mar, 4))
 
-  legend.colors <- tryCatch(brewer.pal(length(legend.values), legend.colors), error = function(x) legend.colors)
+  if(!is.null(legend.colors) && !is.null(legend.values))
+    legend.colors <- tryCatch(brewer.pal(length(legend.values), legend.colors), error = function(x) legend.colors)
+
   line.color <- tryCatch(brewer.pal(N, line.color), error = function(x) line.color)
 
   lapply(1:N, function(iso) {
@@ -111,7 +126,11 @@ isovision <- function(data, whichIsoforms = NULL, main = NULL, main.cex = 2,
       xs <- c(r[1], r[2], r[2], r[1], r[1])
       ys <- c(0, 0, 100, 100, 0)
 
-      outerColor <- legend.colors[which(as.matrix(subset[exon, ..legend]))]
+      if(is.null(legend.colors))
+        outerColor <- NULL
+      else
+        outerColor <- legend.colors[which(as.matrix(subset[exon, ..legend]))]
+
       if(length(outerColor) == 0) {
         outerColor <- default.border
         innerColor <- default.fill
@@ -133,8 +152,12 @@ isovision <- function(data, whichIsoforms = NULL, main = NULL, main.cex = 2,
         }
       }
 
+      inORF <- T
+      if('ORF' %in% colnames(subset))
+        inORF <- subset[exon, ORF]
+
       polygon(xs, ys, border = outerColor, col = innerColor,
-              lty = switch(subset[exon, ORF] + 1, norf.lty, orf.lty), lwd = switch(subset[exon, ORF] + 1, norf.lwd, orf.lwd))
+              lty = switch(inORF + 1, norf.lty, orf.lty), lwd = switch(inORF + 1, norf.lwd, orf.lwd))
     })
   })
 
@@ -150,8 +173,10 @@ isovision <- function(data, whichIsoforms = NULL, main = NULL, main.cex = 2,
   }
 
   # Legend
-  plot(c(0, 100), c(0, 100), type = 'n', xlab = '', ylab = '', axes = F)
-  legend(0, 50, legend.values, sapply(legend.colors, lighterColor), border = legend.colors, bty = 'n', horiz = T)
+  if(!is.null(legend.values) && length(legend.values) > 0) {
+    plot(c(0, 100), c(0, 100), type = 'n', xlab = '', ylab = '', axes = F)
+    legend(0, 50, legend.values, sapply(legend.colors, lighterColor), border = legend.colors, bty = 'n', horiz = T)
+  }
 
   dev.off()
 }
